@@ -8,7 +8,7 @@ PowerShell script for automation certificate deployment. Tested on Windows Serve
 
 ## Usage
 ```
-PS C:\> .\update-iis-certificate.ps1 [[-PFXPath] <String>] -CertSubject <String> [-PFXPassword <String> ]
+PS C:\> .\update-exchange-certificate.ps1 [[-PFXPath] <String>] -CertSubject <String> [-PFXPassword <String> ]
                                      [-ExcludeLocalServerCert]
 ```
 All parameters in square brackets are optional. The ExcludeLocalServerCert is $True if set. You almost never want this set to true, because Exchange server hostname usally is equal to the certificate subject why local certificates could be the updated one.
@@ -19,7 +19,7 @@ If the password contains a $ sign, you must escape it with the ` ` character.
 ### Examples
 Install/update certificate in store and activate for Exchange Services:
 ```
-PS C:\> .\update-iis-certificate.ps1 ".\example.com.pfx" -CertSubject "example.com" -PFXPassword "P@ssw0rd"
+PS C:\> .\update-exchange-certificate.ps1 ".\example.com.pfx" -CertSubject "example.com" -PFXPassword "P@ssw0rd"
 ```
 
 ### Logs
