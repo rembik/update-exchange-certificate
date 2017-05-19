@@ -23,7 +23,7 @@
   Script Name: update-exchange-certificate.ps1
   Release:     1.0
   Written by   brian@rimek.info 19th May 2017
-               https://github.com/rembik/update-iis-certificate
+               https://github.com/rembik/update-exchange-certificate
 
   Note:        This script has been tested thoroughly on Windows 2012R2
                (Exchange 15). I cannot guarantee full
