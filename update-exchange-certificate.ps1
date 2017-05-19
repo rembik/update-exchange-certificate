@@ -229,7 +229,7 @@ If ($ImportSucceed) {
     }
 
     If ($oldCert -And $newCert) {
-        Write-Output " + Deleting old certificate from Store..."
+        Write-Output " + Deleting old certificate from store..."
         try{
             If (Test-Path "cert:\LocalMachine\My\$oldThumbprint") {
                 Remove-Item -Path cert:\LocalMachine\My\$oldThumbprint -DeleteKey
