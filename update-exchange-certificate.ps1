@@ -3,10 +3,10 @@
   Syntax examples:
     
     Install/update certificate in store and activate for Exchange Services:
-      update-iis-certificate.ps1 ".\example.com.pfx" -CertSubject "example.com" -PFXPassword "P@ssw0rd"
+      update-exchange-certificate.ps1 ".\example.com.pfx" -CertSubject "example.com" -PFXPassword "P@ssw0rd"
                                  
     Passing parameters:
-      update-iis-certificate.ps1 [[-PFXPath] <String>] -CertSubject <String> [-PFXPassword <String> ]
+      update-exchange-certificate.ps1 [[-PFXPath] <String>] -CertSubject <String> [-PFXPassword <String> ]
                                  [-ExcludeLocalServerCert]
       
     All parameters in square brackets are optional.
@@ -59,7 +59,9 @@ if ([String]::IsNullOrEmpty($PFXPassword)) {
   $secPFXPassword = ConvertTo-SecureString -String $PFXPassword -Force -AsPlainText
 }
 
-if ($ExcludeLocalServerCert.IsPresent) {   $ExcludeLocalServerCert = $True}
+if ($ExcludeLocalServerCert.IsPresent) { 
+  $ExcludeLocalServerCert = $True
+}
 
 #-------------------------------------------------------------
 
