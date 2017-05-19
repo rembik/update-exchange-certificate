@@ -3,7 +3,7 @@ PowerShell script for automation certificate deployment. Tested on Windows Serve
 
 ## Requirements
 * PowerShell Version >= 2
-* Exchange >= 14
+* MS Exchange >= 14
 * Certificate file [.pfx], private key included
 
 ## Usage
