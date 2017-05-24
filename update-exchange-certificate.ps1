@@ -210,33 +210,60 @@ If ($ImportSucceed) {
     catch{
         Write-Output " + Unable to locate new certificate in store!"
     }
-
-    If ($newCert) {
-        Write-Output " + Activating new certificate for Exchange Services SMTP, IMAP, POP and IIS..."
-        try{
-            $NewExchangeBinding = Enable-ExchangeCertificate -Thumbprint $newThumbprint -Services "SMTP, IMAP, POP, IIS" –force -ErrorAction SilentlyContinue -ErrorVariable ActivateError
-            Write-Output $NewExchangeBinding
-            $checkExchangeThumbprint = (Get-ChildItem -Path IIS:SslBindings | where {$_.port -match "443" -AND $_.IPAddress -match "0.0.0.0" } | select Thumbprint).Thumbprint
-            If ($checkExchangeThumbprint -eq $newThumbprint) {
-                iisreset
-                Write-Output " + Activated new certificate!"
-            } Else {
-                Write-Output " + Unable to activate new certificate: $ActivateError"
-            }
-        }
-        catch{
-        }
-    }
-
+    
     If ($oldCert -And $newCert) {
-        Write-Output " + Deleting old certificate from store..."
+        Write-Output " + Export old certificate as backup and delete it from store..."
         try{
             If (Test-Path "cert:\LocalMachine\My\$oldThumbprint") {
+                $PFXBackupPath = "$(&$ScriptPath)\$($CertSubject)_backup-$($datestampforfilename).pfx"
+                $ExportOutput = Get-ChildItem -Path cert:\LocalMachine\My\$oldThumbprint | Export-PfxCertificate –Cert cert:\currentuser\my\$oldThumbprint –FilePath $PFXBackupPath -ChainOption BuildChain -Password $secPFXPassword -Force -ErrorAction SilentlyContinue -ErrorVariable ExportError
+                Write-Output " + Exported backup certificate:"
+                write-Output $ExportOutput
+                Write-Output " + Deleting old certificate from store..."
                 Remove-Item -Path cert:\LocalMachine\My\$oldThumbprint -DeleteKey
             }
         }
         catch{
-            Write-Output " + Unable to delete old certificate from store!"
+            Write-Output " + Failed to backup and delete old certificate from store: $ExportError"
+        }
+   
+    }
+
+    If ($newCert) {
+        Write-Output " + Activating new certificate for Exchange Services SMTP, IMAP, POP and IIS..."
+        Enable-ExchangeCertificate -Thumbprint $newThumbprint -Services "SMTP, IMAP, POP, IIS" –force -ErrorAction SilentlyContinue -ErrorVariable ActivateError
+        $checkExchangeThumbprint = (Get-ChildItem -Path IIS:SslBindings | where {$_.port -match "443" -AND $_.IPAddress -match "0.0.0.0" } | select Thumbprint).Thumbprint
+        If ($checkExchangeThumbprint -eq $newThumbprint) {
+            iisreset
+            Write-Output " + Activated new certificate!"
+        } Else {
+            Write-Output " + Unable to activate new certificate: $ActivateError"
+            Write-Output " + Importing backup certificate into Store..."
+            try{
+                $ImportOutput = Import-PfxCertificate –FilePath $PFXBackupPath -CertStoreLocation "cert:\LocalMachine\My" -Exportable -Password $secPFXPassword -ErrorAction Stop -ErrorVariable ImportError
+                $ImportSucceed = $True
+                Write-Output " + Imported backup certificate:"
+                write-Output $ImportOutput
+            }
+            catch{
+                Write-Output " + Failed to import backup certificate: $ImportError"
+            }
+            Write-Output " + Reactivating backup certificate for Exchange Services SMTP, IMAP, POP and IIS..."
+            try{
+                Enable-ExchangeCertificate -Thumbprint $oldThumbprint -Services "SMTP, IMAP, POP, IIS" –force -ErrorAction SilentlyContinue -ErrorVariable ActivateError
+            }
+            catch{
+                Write-Output " + Unable to reactivate backup certificate: $ActivateError"
+            }
+            Write-Output " + Deleting unactivated certificate from store..."
+            try{
+                If (Test-Path "cert:\LocalMachine\My\$newThumbprint") {
+                    Remove-Item -Path cert:\LocalMachine\My\$newThumbprint -DeleteKey
+                }
+            }
+            catch{
+                Write-Output " + Unable to delete unactivated certificate from store!"
+            }
         }
     }
 }
