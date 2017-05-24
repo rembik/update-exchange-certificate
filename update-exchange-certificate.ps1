@@ -184,11 +184,11 @@ If ($oldCert) {
 }
 
 $ImportSucceed = $False
-Write-Output " + Importing certificate into Store..."
+Write-Output " + Importing new certificate into Store..."
 try{
     $ImportOutput = Import-PfxCertificate –FilePath $PFXPath -CertStoreLocation "cert:\LocalMachine\My" -Exportable -Password $secPFXPassword -ErrorAction Stop -ErrorVariable ImportError
     $ImportSucceed = $True
-    Write-Output " + Imported certificate:"
+    Write-Output " + Imported new certificate:"
     write-Output $ImportOutput
 }
 catch{
@@ -216,9 +216,10 @@ If ($ImportSucceed) {
         try{
             If (Test-Path "cert:\LocalMachine\My\$oldThumbprint") {
                 $PFXBackupPath = "$(&$ScriptPath)\$($CertSubject)_backup-$($datestampforfilename).pfx"
-                $ExportOutput = Get-ChildItem -Path cert:\LocalMachine\My\$oldThumbprint | Export-PfxCertificate –Cert cert:\currentuser\my\$oldThumbprint –FilePath $PFXBackupPath -ChainOption BuildChain -Password $secPFXPassword -Force -ErrorAction SilentlyContinue -ErrorVariable ExportError
+                $bkpCert = Get-ChildItem -Path cert:\LocalMachine\My\$oldThumbprint
                 Write-Output " + Exported backup certificate:"
-                write-Output $ExportOutput
+                $ExportOutput = Export-PfxCertificate –Cert cert:\LocalMachine\My\$oldThumbprint –FilePath $PFXBackupPath -ChainOption BuildChain -Password $secPFXPassword -Force -ErrorAction SilentlyContinue -ErrorVariable ExportError
+                Write-Output $ExportOutput
                 Write-Output " + Deleting old certificate from store..."
                 Remove-Item -Path cert:\LocalMachine\My\$oldThumbprint -DeleteKey
             }
