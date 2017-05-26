@@ -217,7 +217,7 @@ If ($ImportSucceed) {
         Enable-ExchangeCertificate -Thumbprint $newThumbprint -Services "IIS" –force -ErrorAction SilentlyContinue -ErrorVariable ActivateError2
         $checkExchangeThumbprint = (Get-ChildItem -Path IIS:SslBindings | where {$_.port -match "443" -AND $_.IPAddress -match "0.0.0.0" } | select Thumbprint).Thumbprint
         If ($checkExchangeThumbprint -eq $newThumbprint) {
-            iisreset
+            #iisreset   #optional
             Write-Output " + Activated new certificate!"
             If ($oldCert) {
                 Write-Output " + Export old certificate as backup and delete it from store..."
