@@ -10,12 +10,11 @@
                                  [-ExcludeLocalServerCert]
       
     All parameters in square brackets are optional.
-    The ExcludeLocalServerCert is $True if set. You 
-    almost never want this set to true, because Exchange
-    server hostname usally is equal to the certificate 
-    subject why local certificates could be the updated 
-    one. One Exception is using a wildcard certificate. 
-    It's there mainly for flexibility.
+    The ExcludeLocalServerCert is forced to $True if left off. You 
+    almost never want this set to false, because Exchange
+    server hostname usally isn't equal to the certificate 
+    subject why local certificates shouldn't be the updated 
+    one.
 
     If the password contains a $ sign, you must escape it with the `
     character.
@@ -59,7 +58,7 @@ if ([String]::IsNullOrEmpty($PFXPassword)) {
   $secPFXPassword = ConvertTo-SecureString -String $PFXPassword -Force -AsPlainText
 }
 
-if ($ExcludeLocalServerCert.IsPresent) { 
+if (!($ExcludeLocalServerCert.IsPresent)) { 
   $ExcludeLocalServerCert = $True
 }
 
