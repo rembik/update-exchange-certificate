@@ -167,7 +167,7 @@ if ($exchVer[0] -eq 14 -Or $exchVer[0] -eq 15) {
   }
 }
 
-Write-Output " + Locating the current(old) certificate in store..."
+Write-Output " + Locating old certificate in store..."
 If ($ExcludeLocalServerCert) {
         $oldCert = Get-ChildItem cert:\LocalMachine\My | Where-Object {$_.subject -like "CN=$CertSubject*" -AND $_.subject -notlike "CN=$env:COMPUTERNAME"}
     } Else {
@@ -175,11 +175,11 @@ If ($ExcludeLocalServerCert) {
     }
 If ($oldCert) {
     $oldThumbprint = $oldCert.Thumbprint.ToString()
-    Write-Output " + Current(old) certificate:"
+    Write-Output " + Old certificate:"
     Write-Output $oldCert
 } Else {
     $oldThumbprint = ""
-    Write-Output " + Unable to locate current(old) certificate in store!"
+    Write-Output " + Failed to locate old certificate in store!"
 }
 
 $ImportSucceed = $False
@@ -191,11 +191,11 @@ try{
     write-Output $ImportOutput
 }
 catch{
-    Write-Output " + Failed to import certificate: $ImportError"
+    Write-Output " + Failed to import new certificate: $ImportError"
 }
 
 If ($ImportSucceed) {
-    Write-Output " + Locating the new certificate in store..."
+    Write-Output " + Locating new certificate in store..."
     try{
         If ($ExcludeLocalServerCert) {
             $newCert = Get-ChildItem cert:\LocalMachine\My | Where-Object {$_.subject -like "CN=$CertSubject*" -AND $_.thumbprint -ne $oldThumbprint -AND $_.subject -notlike "CN=$env:COMPUTERNAME"}
@@ -207,54 +207,49 @@ If ($ImportSucceed) {
         Write-Output $newCert
     }
     catch{
-        Write-Output " + Unable to locate new certificate in store!"
+        Write-Output " + Failed to locate new certificate in store!"
     }
 
     If ($newCert) {
-        Write-Output " + Activating new certificate for Exchange Services SMTP, IMAP, POP and IIS..."
-        Enable-ExchangeCertificate -Thumbprint $newThumbprint -Services "SMTP, IMAP, POP" –force -ErrorAction SilentlyContinue -ErrorVariable ActivateError1
-        Enable-ExchangeCertificate -Thumbprint $newThumbprint -Services "IIS" –force -ErrorAction SilentlyContinue -ErrorVariable ActivateError2
+        Write-Output " + Enable new certificate for Exchange Services SMTP, IMAP, POP and IIS..."
+        Enable-ExchangeCertificate -Thumbprint $newThumbprint -Services "SMTP, IMAP, POP, IIS" –Force -ErrorAction SilentlyContinue -ErrorVariable ActivateError
         $checkExchangeThumbprint = (Get-ChildItem -Path IIS:SslBindings | where {$_.port -match "443" -AND $_.IPAddress -match "0.0.0.0" } | select Thumbprint).Thumbprint
         If ($checkExchangeThumbprint -eq $newThumbprint) {
-            #iisreset   #optional
-            Write-Output " + Activated new certificate!"
+            Write-Output " + Enabled new certificate!"
             If ($oldCert) {
-                Write-Output " + Export old certificate as backup and delete it from store..."
+                Write-Output " + Export old certificate as backup and remove it from store..."
                 try{
                     If (Test-Path "cert:\LocalMachine\My\$oldThumbprint") {
                         $PFXBackupPath = "$(&$ScriptPath)\$($CertSubject)_backup-$($datestampforfilename).pfx"
-                        $bkpCert = Get-ChildItem -Path cert:\LocalMachine\My\$oldThumbprint
                         Write-Output " + Exported backup certificate:"
                         $ExportOutput = Export-PfxCertificate –Cert cert:\LocalMachine\My\$oldThumbprint –FilePath $PFXBackupPath -ChainOption BuildChain -Password $secPFXPassword -Force -ErrorAction SilentlyContinue -ErrorVariable ExportError
                         Write-Output $ExportOutput
-                        Write-Output " + Deleting old certificate from store..."
-                        Remove-Item -Path cert:\LocalMachine\My\$oldThumbprint -DeleteKey
+                        Remove-ExchangeCertificate -Thumbprint $oldThumbprint -Confirm:$false
                     }
                 }
                 catch{
-                    Write-Output " + Failed to backup and delete old certificate from store: $ExportError"
+                    Write-Output " + Failed to export and remove old certificate from store: $ExportError"
                 }
             }
         } Else {
-            Write-Output " + Unable to activate new certificate: $ActivateError1 & $ActivateError2"
+            Write-Output " + Failed to enable new certificate: $ActivateError"
             If ($oldCert) {
-                Write-Output " + Reactivating old certificate for Exchange Services SMTP, IMAP, POP and IIS..."
+                Write-Output " + Enable old certificate for Exchange Services SMTP, IMAP, POP and IIS..."
                 try{
-                    Enable-ExchangeCertificate -Thumbprint $oldThumbprint -Services "SMTP, IMAP, POP" –force -ErrorAction SilentlyContinue -ErrorVariable ActivateError1
-                    Enable-ExchangeCertificate -Thumbprint $oldThumbprint -Services "IIS" –force -ErrorAction SilentlyContinue -ErrorVariable ActivateError2
+                    Enable-ExchangeCertificate -Thumbprint $oldThumbprint -Services "SMTP, IMAP, POP, IIS" –Force -ErrorAction SilentlyContinue -ErrorVariable ActivateError
                 }
                 catch{
-                    Write-Output " + Unable to reactivate backup certificate: $ActivateError1 & $ActivateError2"
+                    Write-Output " + Failed to enable old certificate: $ActivateError"
                 }
             }
-            Write-Output " + Deleting unactivated, imported certificate from store..."
+            Write-Output " + Remove new certificate from store..."
             try{
                 If (Test-Path "cert:\LocalMachine\My\$newThumbprint") {
-                    Remove-Item -Path cert:\LocalMachine\My\$newThumbprint -DeleteKey
+                    Remove-ExchangeCertificate -Thumbprint $newThumbprint -Confirm:$false
                 }
             }
             catch{
-                Write-Output " + Unable to delete unactivated, imported certificate from store!"
+                Write-Output " + Failed to remove new certificate from store!"
             }
         }
     }
