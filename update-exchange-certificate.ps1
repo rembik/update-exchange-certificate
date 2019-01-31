@@ -185,7 +185,7 @@ If ($oldCert) {
 $ImportSucceed = $False
 Write-Output " + Importing new certificate into Store..."
 try{
-    $ImportOutput = Import-PfxCertificate –FilePath $PFXPath -CertStoreLocation "cert:\LocalMachine\My" -Exportable -Password $secPFXPassword -ErrorAction Stop -ErrorVariable ImportError
+    $ImportOutput = Import-ExchangeCertificate –FileName $PFXPath -PrivateKeyExportable:$true -Password $secPFXPassword -Confirm:$false -ErrorAction Stop -ErrorVariable ImportError
     $ImportSucceed = $True
     Write-Output " + Imported new certificate:"
     write-Output $ImportOutput
@@ -212,7 +212,7 @@ If ($ImportSucceed) {
 
     If ($newCert) {
         Write-Output " + Enable new certificate for Exchange Services SMTP, IMAP, POP and IIS..."
-        Enable-ExchangeCertificate -Thumbprint $newThumbprint -Services "SMTP, IMAP, POP, IIS" –Force -ErrorAction SilentlyContinue -ErrorVariable ActivateError
+        Enable-ExchangeCertificate -Thumbprint $newThumbprint -Services "SMTP,IMAP,POP,IIS" –Force -ErrorAction SilentlyContinue -ErrorVariable ActivateError
         $checkExchangeThumbprint = (Get-ChildItem -Path IIS:SslBindings | where {$_.port -match "443" -AND $_.IPAddress -match "0.0.0.0" } | select Thumbprint).Thumbprint
         If ($checkExchangeThumbprint -eq $newThumbprint) {
             Write-Output " + Enabled new certificate!"
@@ -222,8 +222,15 @@ If ($ImportSucceed) {
                     If (Test-Path "cert:\LocalMachine\My\$oldThumbprint") {
                         $PFXBackupPath = "$(&$ScriptPath)\$($CertSubject)_backup-$($datestampforfilename).pfx"
                         Write-Output " + Exported backup certificate:"
-                        $ExportOutput = Export-PfxCertificate –Cert cert:\LocalMachine\My\$oldThumbprint –FilePath $PFXBackupPath -ChainOption BuildChain -Password $secPFXPassword -Force -ErrorAction SilentlyContinue -ErrorVariable ExportError
+                        $ExportOutput = Export-ExchangeCertificate -Thumbprint $oldThumbprint –FileName $PFXBackupPath -Password $secPFXPassword -Confirm:$false -ErrorAction SilentlyContinue -ErrorVariable ExportError
                         Write-Output $ExportOutput
+                        Write-Output " + Disable old certificate for Exchange Services SMTP, IMAP, POP and IIS..."
+                        try{
+                            Enable-ExchangeCertificate -Thumbprint $oldThumbprint -Services "None"  –Force -ErrorAction SilentlyContinue -ErrorVariable DeactivateError
+                        }
+                        catch{
+                            Write-Output " + Failed to disable old certificate: $DeactivateError"
+                        }
                         Remove-ExchangeCertificate -Thumbprint $oldThumbprint -Confirm:$false
                     }
                 }
@@ -245,6 +252,13 @@ If ($ImportSucceed) {
             Write-Output " + Remove new certificate from store..."
             try{
                 If (Test-Path "cert:\LocalMachine\My\$newThumbprint") {
+                    Write-Output " + Disable new certificate for Exchange Services SMTP, IMAP, POP and IIS..."
+                    try{
+                        Enable-ExchangeCertificate -Thumbprint $newThumbprint -Services "None" -Force -ErrorAction SilentlyContinue -ErrorVariable DeactivateError
+                    }
+                    catch{
+                        Write-Output " + Failed to disable new certificate: $DeactivateError"
+                    }
                     Remove-ExchangeCertificate -Thumbprint $newThumbprint -Confirm:$false
                 }
             }
