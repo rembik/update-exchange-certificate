@@ -7,7 +7,7 @@
                                  
     Passing parameters:
       update-exchange-certificate.ps1 [[-PFXPath] <String>] -CertSubject <String> [-PFXPassword <String> ]
-                                 [-ExcludeLocalServerCert]
+                                      [-ExcludeLocalServerCert]
       
     All parameters in square brackets are optional.
     The ExcludeLocalServerCert is forced to $True if left off. You 
@@ -204,7 +204,7 @@ If ($imported) {
 
     If ($newCert) {
         Write-Output " + Enable new certificate for Exchange Services SMTP, IMAP, POP and IIS..."
-        Enable-ExchangeCertificate -Thumbprint $newThumbprint -Services "SMTP,IMAP,POP,IIS" –Force -ErrorAction SilentlyContinue -ErrorVariable ActivateError
+        Enable-ExchangeCertificate -Thumbprint $newThumbprint -Services "SMTP,IMAP,POP,IIS" -Force -ErrorAction SilentlyContinue -ErrorVariable ActivateError
         $checkExchangeThumbprint = (Get-ChildItem -Path IIS:SslBindings | where {$_.port -match "443" -AND $_.IPAddress -match "0.0.0.0" } | select Thumbprint).Thumbprint
         If ($checkExchangeThumbprint -eq $newThumbprint) {
             Write-Output " + Enabled new certificate!"
@@ -213,8 +213,8 @@ If ($imported) {
                 try{
                     If (Test-Path "cert:\LocalMachine\My\$oldThumbprint") {
                         $PFXBackupPath = "$(&$ScriptPath)\$($CertSubject)_backup-$($datestampforfilename).pfx"
-                        Export-ExchangeCertificate -Thumbprint $oldThumbprint –FileName $PFXBackupPath -Password $secPFXPassword -Confirm:$false -ErrorAction SilentlyContinue -ErrorVariable ExportError
-                        Enable-ExchangeCertificate -Thumbprint $oldThumbprint -Services "None"  –Force -ErrorAction SilentlyContinue
+                        $ExportOutput = Export-ExchangeCertificate -Thumbprint $oldThumbprint -FileName $PFXBackupPath -Password $secPFXPassword -Confirm:$false -ErrorAction SilentlyContinue -ErrorVariable ExportError
+                        Enable-ExchangeCertificate -Thumbprint $oldThumbprint -Services "None" -Force -ErrorAction SilentlyContinue
                         Remove-ExchangeCertificate -Thumbprint $oldThumbprint -Confirm:$false
                     }
                 }
