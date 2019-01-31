@@ -122,16 +122,14 @@ catch{
 Write-Output " + Loading the Exchange Management SnapIn..."
 try{
     $exchVer =  gcm exsetup | %{$_.fileversioninfo.ProductVersion.Split("{.}")}
-    switch ($exchVer[0])
-      {
+    switch ($exchVer[0]) {
         14 {$exchSnapIn = "Add-PSSnapin Microsoft.Exchange.Management.PowerShell.E2010;"}
         15 {$exchSnapIn = "Add-PSSnapin Microsoft.Exchange.Management.PowerShell.SnapIn;"}		
-        default
-        {
-          Write-Output " + No supported Exchange version found!"
-          exit
+        default {
+            Write-Output " + No supported Exchange version found!"
+            exit
         }
-      }
+    }
     Invoke-Expression $exchSnapIn
 }
 catch{
@@ -139,62 +137,57 @@ catch{
 }
 
 if ($exchVer[0] -eq 14 -Or $exchVer[0] -eq 15) {
-  Write-Output " + Reading configured Exchange domain names..."
-  $exchServer = (Get-ExchangeServer $env:computername).Name
-    [array]$exchDomains += ((Get-ClientAccessServer -Identity $exchServer).AutoDiscoverServiceInternalUri.Host).ToLower()  
-    [array]$exchDomains += ((Get-OutlookAnywhere -Server $exchServer).ExternalHostname.Hostnamestring).ToLower() 
-    [array]$exchDomains += ((Get-OabVirtualDirectory -Server $exchServer).Internalurl.Host).ToLower()
-    [array]$exchDomains += ((Get-OabVirtualDirectory -Server $exchServer).ExternalUrl.Host).ToLower()
-    [array]$exchDomains += ((Get-ActiveSyncVirtualDirectory -Server $exchServer).Internalurl.Host).ToLower()
-    [array]$exchDomains += ((Get-ActiveSyncVirtualDirectory -Server $exchServer).ExternalUrl.Host).ToLower()
-    [array]$exchDomains += ((Get-WebServicesVirtualDirectory -Server $exchServer).Internalurl.Host).ToLower()
-    [array]$exchDomains += ((Get-WebServicesVirtualDirectory -Server $exchServer).ExternalUrl.Host).ToLower()
-    [array]$exchDomains += ((Get-EcpVirtualDirectory -Server $exchServer).Internalurl.Host).ToLower()
-    [array]$exchDomains += ((Get-EcpVirtualDirectory -Server $exchServer).ExternalUrl.Host).ToLower()
-    [array]$exchDomains += ((Get-OwaVirtualDirectory -Server $exchServer).Internalurl.Host).ToLower()
-    [array]$exchDomains += ((Get-OwaVirtualDirectory -Server $exchServer).ExternalUrl.Host).ToLower()
-  if ($exchVer[0] -match 15)
-  {
-    [array]$exchDomains += ((Get-OutlookAnywhere -Server $exchServer).Internalhostname.Hostnamestring).ToLower() 
-    [array]$exchDomains += ((Get-MapiVirtualDirectory -Server $exchServer).Internalurl.Host).ToLower()
-    [array]$exchDomains += ((Get-MapiVirtualDirectory -Server $exchServer).ExternalUrl.Host).ToLower()
-  }
-  $exchDomains = $exchDomains | select –Unique
-
-  Write-Output " + Configured Exchange domain names:"
-  foreach ($exchDomain in $exchDomains) {
-    Write-Output "   $exchDomain"
-  }
+    Write-Output " + Reading configured Exchange domain names..."
+    $exchServer = (Get-ExchangeServer $env:computername).Name
+        [array]$exchDomains += ((Get-ClientAccessServer -Identity $exchServer).AutoDiscoverServiceInternalUri.Host).ToLower()  
+        [array]$exchDomains += ((Get-OutlookAnywhere -Server $exchServer).ExternalHostname.Hostnamestring).ToLower() 
+        [array]$exchDomains += ((Get-OabVirtualDirectory -Server $exchServer).Internalurl.Host).ToLower()
+        [array]$exchDomains += ((Get-OabVirtualDirectory -Server $exchServer).ExternalUrl.Host).ToLower()
+        [array]$exchDomains += ((Get-ActiveSyncVirtualDirectory -Server $exchServer).Internalurl.Host).ToLower()
+        [array]$exchDomains += ((Get-ActiveSyncVirtualDirectory -Server $exchServer).ExternalUrl.Host).ToLower()
+        [array]$exchDomains += ((Get-WebServicesVirtualDirectory -Server $exchServer).Internalurl.Host).ToLower()
+        [array]$exchDomains += ((Get-WebServicesVirtualDirectory -Server $exchServer).ExternalUrl.Host).ToLower()
+        [array]$exchDomains += ((Get-EcpVirtualDirectory -Server $exchServer).Internalurl.Host).ToLower()
+        [array]$exchDomains += ((Get-EcpVirtualDirectory -Server $exchServer).ExternalUrl.Host).ToLower()
+        [array]$exchDomains += ((Get-OwaVirtualDirectory -Server $exchServer).Internalurl.Host).ToLower()
+        [array]$exchDomains += ((Get-OwaVirtualDirectory -Server $exchServer).ExternalUrl.Host).ToLower()
+    if ($exchVer[0] -match 15) {
+        [array]$exchDomains += ((Get-OutlookAnywhere -Server $exchServer).Internalhostname.Hostnamestring).ToLower() 
+        [array]$exchDomains += ((Get-MapiVirtualDirectory -Server $exchServer).Internalurl.Host).ToLower()
+        [array]$exchDomains += ((Get-MapiVirtualDirectory -Server $exchServer).ExternalUrl.Host).ToLower()
+    }
+    $exchDomains = $exchDomains | select –Unique
+    foreach ($exchDomain in $exchDomains) {
+        Write-Output "   $exchDomain"
+    }
 }
 
 Write-Output " + Locating old certificate in store..."
 If ($ExcludeLocalServerCert) {
-        $oldCert = Get-ChildItem cert:\LocalMachine\My | Where-Object {$_.subject -like "CN=$CertSubject*" -AND $_.subject -notlike "CN=$env:COMPUTERNAME"}
-    } Else {
-        $oldCert = Get-ChildItem cert:\LocalMachine\My | Where-Object {$_.subject -like "CN=$CertSubject*"}
-    }
+    $oldCert = Get-ChildItem cert:\LocalMachine\My | Where-Object {$_.subject -like "CN=$CertSubject*" -AND $_.subject -notlike "CN=$env:COMPUTERNAME"}
+} Else {
+    $oldCert = Get-ChildItem cert:\LocalMachine\My | Where-Object {$_.subject -like "CN=$CertSubject*"}
+}
 If ($oldCert) {
     $oldThumbprint = $oldCert.Thumbprint.ToString()
-    Write-Output " + Old certificate:"
     Write-Output $oldCert
 } Else {
     $oldThumbprint = ""
     Write-Output " + Failed to locate old certificate in store!"
 }
 
-$ImportSucceed = $False
+$imported = $False
 Write-Output " + Importing new certificate into Store..."
 try{
-    $ImportOutput = Import-ExchangeCertificate –FileName $PFXPath -PrivateKeyExportable:$true -Password $secPFXPassword -Confirm:$false -ErrorAction Stop -ErrorVariable ImportError
-    $ImportSucceed = $True
-    Write-Output " + Imported new certificate:"
+    $ImportOutput = Import-ExchangeCertificate –FileName $PFXPath -PrivateKeyExportable:$true -Password $secPFXPassword -Confirm:$false -ErrorAction SilentlyContinue -ErrorVariable ImportError
+    $imported = $True
     write-Output $ImportOutput
 }
 catch{
     Write-Output " + Failed to import new certificate: $ImportError"
 }
 
-If ($ImportSucceed) {
+If ($imported) {
     Write-Output " + Locating new certificate in store..."
     try{
         If ($ExcludeLocalServerCert) {
@@ -203,7 +196,6 @@ If ($ImportSucceed) {
             $newCert = Get-ChildItem cert:\LocalMachine\My | Where-Object {$_.subject -like "CN=$CertSubject*" -AND $_.thumbprint -ne $oldThumbprint}
         }
         $newThumbprint = $newCert.Thumbprint.ToString()
-        Write-Output " + New certificate:"
         Write-Output $newCert
     }
     catch{
@@ -221,16 +213,8 @@ If ($ImportSucceed) {
                 try{
                     If (Test-Path "cert:\LocalMachine\My\$oldThumbprint") {
                         $PFXBackupPath = "$(&$ScriptPath)\$($CertSubject)_backup-$($datestampforfilename).pfx"
-                        Write-Output " + Exported backup certificate:"
-                        $ExportOutput = Export-ExchangeCertificate -Thumbprint $oldThumbprint –FileName $PFXBackupPath -Password $secPFXPassword -Confirm:$false -ErrorAction SilentlyContinue -ErrorVariable ExportError
-                        Write-Output $ExportOutput
-                        Write-Output " + Disable old certificate for Exchange Services SMTP, IMAP, POP and IIS..."
-                        try{
-                            Enable-ExchangeCertificate -Thumbprint $oldThumbprint -Services "None"  –Force -ErrorAction SilentlyContinue -ErrorVariable DeactivateError
-                        }
-                        catch{
-                            Write-Output " + Failed to disable old certificate: $DeactivateError"
-                        }
+                        Export-ExchangeCertificate -Thumbprint $oldThumbprint –FileName $PFXBackupPath -Password $secPFXPassword -Confirm:$false -ErrorAction SilentlyContinue -ErrorVariable ExportError
+                        Enable-ExchangeCertificate -Thumbprint $oldThumbprint -Services "None"  –Force -ErrorAction SilentlyContinue
                         Remove-ExchangeCertificate -Thumbprint $oldThumbprint -Confirm:$false
                     }
                 }
@@ -243,7 +227,7 @@ If ($ImportSucceed) {
             If ($oldCert) {
                 Write-Output " + Enable old certificate for Exchange Services SMTP, IMAP, POP and IIS..."
                 try{
-                    Enable-ExchangeCertificate -Thumbprint $oldThumbprint -Services "SMTP, IMAP, POP, IIS" –Force -ErrorAction SilentlyContinue -ErrorVariable ActivateError
+                    Enable-ExchangeCertificate -Thumbprint $oldThumbprint -Services "SMTP,IMAP,POP,IIS" -Force -ErrorAction SilentlyContinue -ErrorVariable ActivateError
                 }
                 catch{
                     Write-Output " + Failed to enable old certificate: $ActivateError"
@@ -252,13 +236,7 @@ If ($ImportSucceed) {
             Write-Output " + Remove new certificate from store..."
             try{
                 If (Test-Path "cert:\LocalMachine\My\$newThumbprint") {
-                    Write-Output " + Disable new certificate for Exchange Services SMTP, IMAP, POP and IIS..."
-                    try{
-                        Enable-ExchangeCertificate -Thumbprint $newThumbprint -Services "None" -Force -ErrorAction SilentlyContinue -ErrorVariable DeactivateError
-                    }
-                    catch{
-                        Write-Output " + Failed to disable new certificate: $DeactivateError"
-                    }
+                    Enable-ExchangeCertificate -Thumbprint $newThumbprint -Services "None" -Force -ErrorAction SilentlyContinue
                     Remove-ExchangeCertificate -Thumbprint $newThumbprint -Confirm:$false
                 }
             }
